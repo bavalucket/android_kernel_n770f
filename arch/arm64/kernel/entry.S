@@ -342,11 +342,7 @@ alternative_else_nop_endif
 #endif
 	.else
 	ldr	lr, [sp, #S_LR]
-#ifdef CONFIG_SEC_DEBUG_EXCEPTION_STACK
-	add	sp, sp, #(S_FRAME_SIZE+PRESERVE_STACK_SIZE)
-#else
 	add	sp, sp, #S_FRAME_SIZE		// restore sp
-#endif
 	eret
 	.endif
 	.endm
@@ -1121,8 +1117,10 @@ __ni_sys_trace:
 	.macro tramp_data_read_var	dst, var
 #ifdef CONFIG_RANDOMIZE_BASE
 	tramp_data_page		\dst
-	isb
 	add	\dst, \dst, #:lo12:__entry_tramp_data_\var
+#ifndef CONFIG_ARCH_MSM8996
+	isb
+#endif
 	ldr	\dst, [\dst]
 #else
 	ldr	\dst, =\var
@@ -1164,6 +1162,7 @@ __ni_sys_trace:
 	b	.
 2:
 	tramp_map_kernel	x30
+	isb
 	tramp_data_read_var	x30, vectors
 	prfm	plil1strm, [x30, #(1b - \vector_start)]
 	msr	vbar_el1, x30

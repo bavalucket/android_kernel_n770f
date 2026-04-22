@@ -109,9 +109,9 @@ walt_dec_cumulative_runnable_avg(struct rq *rq,
 	BUG_ON((s64)rq->cumulative_runnable_avg < 0);
 }
 
-static void
-fixup_cumulative_runnable_avg(struct rq *rq,
-			      struct task_struct *p, s64 task_load_delta)
+void
+walt_fixup_cumulative_runnable_avg(struct rq *rq,
+				   struct task_struct *p, u64 new_task_load)
 {
 	rq->cumulative_runnable_avg += task_load_delta;
 	if ((s64)rq->cumulative_runnable_avg < 0)
@@ -599,9 +599,13 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	 * changing p->on_rq. Since the dequeue decrements hmp stats
 	 * avoid decrementing it here again.
 	 */
-	if (task_on_rq_queued(p) && (!task_has_dl_policy(p) ||
-						!p->dl.dl_throttled))
-		fixup_cumulative_runnable_avg(rq, p, demand);
+	if (!task_has_dl_policy(p) || !p->dl.dl_throttled) {
+		if (task_on_rq_queued(p))
+			p->sched_class->fixup_cumulative_runnable_avg(rq, p,
+								      demand);
+		else if (rq->curr == p)
+			fixup_cum_window_demand(rq, demand);
+	}
 
 	p->ravg.demand = demand;
 
